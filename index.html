@@ -306,6 +306,8 @@ html[data-theme="light"] #ins-health,html[data-theme="light"] .al{box-shadow:0 8
 .pg.on>section:nth-child(5){animation-delay:.26s}
 .pg.on>section:nth-child(n+6){animation-delay:.3s}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.spin{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 /* --- perfis / avatares --- */
 .avatar{border:0;padding:0;border-radius:50%;background-size:cover;background-position:center;cursor:pointer;
@@ -436,6 +438,7 @@ border:1.5px solid rgba(212,162,76,.6);display:flex;align-items:center;justify-c
   <div class="brand">
     <h1>Balizador <em>da Casa</em></h1>
     <div class="hr">
+      <button class="thm" id="refresh" aria-label="Atualizar dados"></button>
       <button class="thm" id="theme" aria-label="Alternar tema">☀️</button>
       <button class="thm" id="hdredit" aria-label="Foto do cabeçalho">🖼️</button>
       <button class="avatar hav" id="hav" aria-label="Meu perfil"></button>
@@ -736,6 +739,8 @@ const SVG_FRAME='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const SVG_CLIP='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5l-8.4 8.4a5 5 0 0 1-7.1-7.1l8.4-8.4a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></svg>';
 const SVG_ALFREDO='<svg viewBox="0 0 64 64"><defs><linearGradient id="alfg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F0D08C"/><stop offset="1" stop-color="#C6902F"/></linearGradient></defs><circle cx="32" cy="21" r="11.5" fill="url(#alfg)"/><path d="M11 60c0-16 11-22 21-22s21 6 21 22z" fill="url(#alfg)"/><path d="M32 40l-8.5-4.6v9.2z" fill="#0B1120"/><path d="M32 40l8.5-4.6v9.2z" fill="#0B1120"/><circle cx="32" cy="40" r="2.6" fill="#0B1120"/></svg>';
 
+const SVG_REFRESH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 4v5h-5"/></svg>';
+
 /* ---------- Tema claro/escuro ---------- */
 const THKEY='balizador-theme';
 function applyTheme(t){document.documentElement.setAttribute('data-theme',t);
@@ -776,6 +781,16 @@ function initHeaderPhoto(){
       toast('Arraste para ajustar a posição');});};
 }
 initHeaderPhoto();
+
+/* ---------- Atualizar dados (botão + ao reabrir o app) ---------- */
+document.getElementById('refresh').innerHTML=SVG_REFRESH;
+document.getElementById('refresh').onclick=async()=>{
+  const b=document.getElementById('refresh');if(b.classList.contains('spin'))return;
+  b.classList.add('spin');
+  try{await carregar();toast('Atualizado ✓');}catch(e){toast('Falha ao atualizar',1);}
+  b.classList.remove('spin');};
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&document.getElementById('app').style.display==='block')carregar();});
 
 let TX=[],CONTAS=[],CATS=[],EST=[],METAS=[],COMP=[],QUEM='',EMAIL='';
 
