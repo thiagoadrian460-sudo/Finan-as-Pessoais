@@ -63,7 +63,24 @@ input:focus{outline:0;border-color:var(--blue)}
 input::placeholder{color:var(--dim)}
 .err{background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.3);border-radius:9px;
 padding:11px;font-size:12.5px;color:var(--red);margin-bottom:11px;display:none}
-header{padding:22px 20px 16px;border-bottom:1px solid var(--line);background:var(--hdr)}
+header{padding:22px 20px 16px;border-bottom:1px solid var(--line);background:var(--hdr);position:relative;overflow:hidden}
+.hdrimg{position:absolute;inset:0;background-size:cover;background-position:50% 50%;z-index:0;display:none}
+.hdrimg.on{display:block}
+.hdrov{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(9,15,28,.5),rgba(9,15,28,.82));display:none}
+header.hasimg .hdrov{display:block}
+header>.brand,header>.verse{position:relative;z-index:2}
+header.hasimg .brand h1,header.hasimg .who,header.hasimg .who #who-x,header.hasimg .thm{color:#fff}
+header.hasimg .vt{color:#dbe3f2}
+header.hasimg .verse{border-left-color:var(--gold)}
+.hdred{position:absolute;left:0;right:0;bottom:0;z-index:4;display:none;flex-direction:column;gap:9px;
+padding:12px 16px 14px;background:linear-gradient(180deg,rgba(9,15,28,0),rgba(9,15,28,.94))}
+.hdred.on{display:flex}
+.hdred .hl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#c6d0e4;font-weight:700}
+.hdred input[type=range]{width:100%;margin:0;accent-color:var(--gold)}
+.hdredbtns{display:flex;gap:8px;justify-content:flex-end}
+.hdredbtns button{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#fff;
+font-family:inherit;font-size:11.5px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer}
+.hdredbtns button.pri{background:var(--gold);border-color:var(--gold);color:#1a1206}
 .brand{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .brand h1{font-family:'Instrument Serif',serif;font-size:25px;letter-spacing:-.3px;line-height:1}
 .brand h1 em{font-style:italic;color:var(--gold)}
@@ -310,6 +327,33 @@ box-shadow:0 0 22px -4px rgba(212,162,76,.6)}
 .pmname{font-family:'Instrument Serif',serif;font-size:26px;line-height:1.05}
 .pmsum{display:flex;gap:10px;margin-bottom:6px}
 .pmsum .pms{flex:1;background:var(--slate);border:1px solid var(--line);border-radius:12px;padding:12px}
+/* --- Alfredo (assistente IA) --- */
+.fab{position:fixed;right:16px;bottom:calc(88px + env(safe-area-inset-bottom));z-index:350;
+width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;
+background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1206;font-size:25px;
+box-shadow:0 0 0 1px rgba(212,162,76,.4),0 10px 26px -6px rgba(212,162,76,.75);
+display:flex;align-items:center;justify-content:center;transition:.2s}
+.fab:active{transform:scale(.94)}
+.chat{position:fixed;inset:0;z-index:360;display:none}
+.chat.on{display:block}
+.chatback{position:absolute;inset:0;background:rgba(6,10,20,.62);backdrop-filter:blur(6px)}
+.chatp{position:absolute;left:0;right:0;bottom:0;max-height:88vh;display:flex;flex-direction:column;
+background:var(--deep);border-top:1px solid var(--line);border-radius:20px 20px 0 0;
+box-shadow:0 -22px 60px -22px rgba(212,162,76,.45);animation:rise .3s cubic-bezier(.2,.8,.2,1)}
+.chath{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.chath .av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));
+display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+.chath b{font-family:'Instrument Serif',serif;font-size:20px;font-weight:400;line-height:1}
+.chath .sub{font-size:10px;color:var(--dim);margin-top:2px}
+.chatx{margin-left:auto;background:var(--slate);border:0;color:var(--ink);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:13px}
+.chatlog{flex:1;overflow:auto;padding:16px 16px 6px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:86%;padding:10px 13px;border-radius:15px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.msg.u{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:var(--slate);color:var(--ink);border-bottom-left-radius:4px}
+.msg.sys{align-self:center;background:0;color:var(--dim);font-size:11px;text-align:center;max-width:100%;padding:2px}
+.chatin{display:flex;gap:8px;padding:12px 14px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.chatin input{margin:0;flex:1}
+.chatin button{width:auto;margin:0;padding:0 16px;flex:none}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -366,10 +410,13 @@ box-shadow:0 0 22px -4px rgba(212,162,76,.6)}
 
 <div id="app">
 <header>
+  <div class="hdrimg" id="hdrimg"></div>
+  <div class="hdrov"></div>
   <div class="brand">
     <h1>Balizador <em>da Casa</em></h1>
     <div class="hr">
       <button class="thm" id="theme" aria-label="Alternar tema">☀️</button>
+      <button class="thm" id="hdredit" aria-label="Foto do cabeçalho">🖼️</button>
       <button class="avatar hav" id="hav" aria-label="Meu perfil"></button>
     </div>
   </div>
@@ -377,6 +424,16 @@ box-shadow:0 0 22px -4px rgba(212,162,76,.6)}
     <div class="vr">Provérbios 16:3</div>
     <div class="vt">"Consagre ao Senhor tudo o que você faz, e os seus planos serão bem-sucedidos."</div>
   </div>
+  <div class="hdred" id="hdred">
+    <div class="hl">Arraste para ajustar a posição da foto</div>
+    <input type="range" id="hdrpos" min="0" max="100" value="50">
+    <div class="hdredbtns">
+      <button id="hdr-trocar">Trocar foto</button>
+      <button id="hdr-rm">Remover</button>
+      <button id="hdr-ok" class="pri">OK</button>
+    </div>
+  </div>
+  <input type="file" id="hdr-file" accept="image/*" style="display:none">
 </header>
 
 <div class="pg on" id="p-painel">
@@ -591,6 +648,23 @@ box-shadow:0 0 22px -4px rgba(212,162,76,.6)}
   <button class="nb" data-p="intel"><span class="ni">◐</span>Inteligência</button>
   <button class="nb" data-p="metas"><span class="ni">⌂</span>Metas</button>
 </nav>
+
+<button class="fab" id="fab" aria-label="Falar com o Alfredo">🤵</button>
+<div class="chat" id="chat">
+  <div class="chatback" id="chatback"></div>
+  <div class="chatp">
+    <div class="chath">
+      <div class="av">🤵</div>
+      <div><b>Alfredo</b><div class="sub">assistente financeiro da casa</div></div>
+      <button class="chatx" id="chatx">✕</button>
+    </div>
+    <div class="chatlog" id="chatlog"></div>
+    <div class="chatin">
+      <input id="chatq" placeholder="Ex: quanto gastei com gasolina em 15 dias?">
+      <button class="btn" id="chatsend">➤</button>
+    </div>
+  </div>
+</div>
 </div>
 
 <div class="pmodal" id="pmodal">
@@ -641,6 +715,36 @@ let THEME=localStorage.getItem(THKEY)||'dark';
 applyTheme(THEME);
 document.getElementById('theme').onclick=()=>{THEME=THEME==='light'?'dark':'light';
   localStorage.setItem(THKEY,THEME);applyTheme(THEME);};
+
+/* ---------- Foto de fundo do cabeçalho (ajustável) ---------- */
+const HDRKEY='balizador-header-img',HDRPOS='balizador-header-pos';
+function applyHeader(){
+  const img=localStorage.getItem(HDRKEY),pos=localStorage.getItem(HDRPOS)||'50';
+  const h=document.querySelector('header'),el=document.getElementById('hdrimg');
+  if(img){el.style.backgroundImage='url('+img+')';el.style.backgroundPosition='50% '+pos+'%';
+    el.classList.add('on');h.classList.add('hasimg');}
+  else{el.style.backgroundImage='';el.classList.remove('on');h.classList.remove('hasimg');}
+}
+function initHeaderPhoto(){
+  applyHeader();
+  const panel=document.getElementById('hdred'),file=document.getElementById('hdr-file'),
+    range=document.getElementById('hdrpos'),el=document.getElementById('hdrimg');
+  document.getElementById('hdredit').onclick=()=>{
+    if(!localStorage.getItem(HDRKEY)){file.click();return;}
+    range.value=localStorage.getItem(HDRPOS)||'50';panel.classList.toggle('on');};
+  range.oninput=()=>{el.style.backgroundPosition='50% '+range.value+'%';};
+  document.getElementById('hdr-ok').onclick=()=>{localStorage.setItem(HDRPOS,range.value);
+    panel.classList.remove('on');toast('Cabeçalho atualizado ✓');};
+  document.getElementById('hdr-trocar').onclick=()=>file.click();
+  document.getElementById('hdr-rm').onclick=()=>{localStorage.removeItem(HDRKEY);localStorage.removeItem(HDRPOS);
+    applyHeader();panel.classList.remove('on');toast('Foto do cabeçalho removida');};
+  file.onchange=e=>{const f=e.target.files[0];if(!f)return;
+    comprimirFoto(f,1400,data=>{try{localStorage.setItem(HDRKEY,data);}catch(_){toast('Imagem muito grande, tente outra',1);return;}
+      if(!localStorage.getItem(HDRPOS))localStorage.setItem(HDRPOS,'50');
+      applyHeader();range.value=localStorage.getItem(HDRPOS);panel.classList.add('on');
+      toast('Arraste para ajustar a posição');});};
+}
+initHeaderPhoto();
 
 let TX=[],CONTAS=[],CATS=[],EST=[],METAS=[],COMP=[],QUEM='',EMAIL='';
 
@@ -1457,6 +1561,80 @@ async function lerPDF(f){
     o.innerHTML='<div class="pr" style="background:rgba(224,82,82,.08);border-color:rgba(224,82,82,.3)"><div class="prt" style="color:var(--red)">Não consegui ler o PDF</div><div class="acs">Alguns PDFs são só imagem (digitalizados) e não têm texto. Nesse caso use o CSV do banco.</div></div>';
   }
 }
+
+/* ---------- Alfredo: assistente de IA (Claude API direto do navegador) ---------- */
+const AKEY='balizador-anthropic-key';
+function alfKey(){return localStorage.getItem(AKEY)||'';}
+const ALF_SCHEMA={type:'object',additionalProperties:false,required:['resposta','acao'],properties:{
+  resposta:{type:'string'},
+  acao:{type:'object',additionalProperties:false,required:['registrar','tipo_mov','valor','categoria','descricao'],properties:{
+    registrar:{type:'boolean'},tipo_mov:{type:'string',enum:['saida','entrada']},
+    valor:{type:'number'},categoria:{type:'string'},descricao:{type:'string'}}}}};
+function chatAdd(role,text){
+  const log=document.getElementById('chatlog');
+  const d=document.createElement('div');d.className='msg '+role;d.textContent=text;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
+function pedirChave(){
+  chatAdd('sys','Para ativar o Alfredo, cole sua chave da API do Claude. Ela fica salva só neste aparelho — nunca vai para o GitHub.');
+  const log=document.getElementById('chatlog');
+  const wrap=document.createElement('div');wrap.className='chatin';wrap.style.cssText='padding:0 0 8px;border:0';
+  wrap.innerHTML='<input id="alf-key" placeholder="sk-ant-..." type="password"><button class="btn" id="alf-save" style="width:auto;flex:none;padding:0 14px;margin:0">Salvar</button>';
+  log.appendChild(wrap);
+  document.getElementById('alf-save').onclick=()=>{const v=document.getElementById('alf-key').value.trim();
+    if(!v){toast('Cole a chave primeiro',1);return;}localStorage.setItem(AKEY,v);wrap.remove();
+    chatAdd('a','Chave salva ✓ Pode perguntar: "quanto entrou esse mês?", "onde meu dinheiro vai?" ou "registra 40 de gasolina".');};}
+function alfContexto(){
+  const cats=CATS.map(c=>c.nome).join(', ');
+  const linhas=TX.slice(0,800).map(t=>t.data+'|'+(+t.valor>0?'+':'')+(+t.valor).toFixed(0)+'|'+catNome(t.categoria_id)+'|'+t.quem+'|'+(t.descricao||'').slice(0,40)).join('\n');
+  return 'Hoje é '+hoje()+'. Usuário atual: '+QUEM+'.\nCategorias existentes: '+cats+'.\nTransações (data|valor|categoria|quem|descrição; valor negativo = saída/gasto, positivo = entrada):\n'+linhas;}
+const ALF_SYS='Você é o Alfredo, mordomo e assistente financeiro da casa de Adrian e Larissa. Responda em português do Brasil, curto, claro e gentil. Baseie-se somente nos dados fornecidos. Faça você mesmo as contas de períodos (últimos N dias, este mês, etc.) a partir das datas. Se o usuário pedir para registrar/lançar algo (ex: "registra 40 de gasolina"), preencha acao.registrar=true com tipo_mov, valor, categoria (use uma das categorias existentes) e descricao; caso contrário acao.registrar=false. Nunca invente valores.';
+async function enviarAlf(){
+  const inp=document.getElementById('chatq');const q=inp.value.trim();if(!q)return;
+  if(!alfKey()){pedirChave();return;}
+  inp.value='';chatAdd('u',q);
+  const pend=chatAdd('a','…');
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+      headers:{'content-type':'application/json','x-api-key':alfKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-opus-4-8',max_tokens:1200,system:ALF_SYS,
+        output_config:{format:{type:'json_schema',schema:ALF_SCHEMA}},
+        messages:[{role:'user',content:alfContexto()+'\n\nPergunta: '+q}]})});
+    if(!res.ok){
+      if(res.status===401){localStorage.removeItem(AKEY);pend.textContent='Chave inválida ou expirada. Toque em enviar de novo para reconfigurar.';return;}
+      pend.textContent='Erro '+res.status+' ao falar com o Claude. Tente de novo.';return;}
+    const data=await res.json();
+    const raw=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    let out;try{out=JSON.parse(raw);}catch(_){pend.textContent=raw||'Não entendi, pode repetir?';return;}
+    pend.textContent=out.resposta||'Ok.';
+    if(out.acao&&out.acao.registrar)await alfRegistrar(out.acao);
+  }catch(e){pend.textContent='Falha de conexão com o Claude. Verifique a internet.';}}
+async function alfRegistrar(a){
+  const cat=CATS.find(c=>c.nome.toLowerCase()===String(a.categoria||'').toLowerCase())
+    ||CATS.find(c=>c.nome==='Não Classificado')||CATS[0];
+  if(!cat){chatAdd('sys','⚠️ Sem categorias para registrar.');return;}
+  const inn=a.tipo_mov==='entrada';
+  let conta;
+  if(inn)conta=(QUEM==='Larissa')?'PJ_LARISSA':'PJ_HARI';
+  else if(cat.nome==='Repasse Tráfego')conta='REPASSE';
+  else if(cat.nome==='Insumos Lash'||cat.nome==='Sala Comercial')conta='PJ_LARISSA';
+  else if(cat.nome!=='Não Classificado')conta='CASA';
+  else conta=(QUEM==='Larissa')?'PF_LARISSA':'PF_ADRIAN';
+  const v=Math.abs(+a.valor||0);if(!v){chatAdd('sys','⚠️ Valor inválido.');return;}
+  const {error}=await sb.from('transacoes').insert({data:hoje(),valor:inn?v:-v,
+    descricao:a.descricao||'Via Alfredo',conta_id:conta,categoria_id:cat.id,pagamento:'pix',quem:QUEM});
+  if(error){chatAdd('sys','⚠️ Não consegui salvar o lançamento.');return;}
+  chatAdd('sys','✓ Lançado: '+(inn?'+':'−')+brl(v)+' · '+cat.nome);
+  await carregar();}
+document.getElementById('fab').onclick=()=>{
+  document.getElementById('chat').classList.add('on');
+  if(!document.getElementById('chatlog').children.length){
+    if(!alfKey())pedirChave();
+    else chatAdd('a','Oi! Sou o Alfredo. Pergunte sobre seus gastos e entradas, ou peça para registrar um lançamento.');}
+  setTimeout(()=>document.getElementById('chatq').focus(),150);};
+document.getElementById('chatx').onclick=()=>document.getElementById('chat').classList.remove('on');
+document.getElementById('chatback').onclick=()=>document.getElementById('chat').classList.remove('on');
+document.getElementById('chatsend').onclick=enviarAlf;
+document.getElementById('chatq').onkeydown=e=>{if(e.key==='Enter')enviarAlf();};
 </script>
 </body>
 </html>
