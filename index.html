@@ -22,7 +22,31 @@ html[data-theme="light"]{--void:#EEF1F7;--deep:#FFFFFF;--slate:#E3E9F4;--line:#D
 body{background:var(--void);color:var(--ink);font-family:'Inter',system-ui,sans-serif;
 min-height:100vh;font-feature-settings:'tnum';transition:background .25s}
 #app{padding-bottom:90px;display:none}
-#login{display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:32px 24px}
+#login{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
+justify-content:flex-end;overflow:hidden;background:#0B1120}
+#login .cover{position:absolute;inset:0;background-size:cover;background-position:center center;z-index:0}
+#login .cover.default{background:
+radial-gradient(130% 90% at 50% 8%,#1b2c4d 0%,rgba(11,17,32,0) 55%),
+radial-gradient(90% 60% at 82% 10%,rgba(212,162,76,.22),rgba(11,17,32,0) 60%),
+linear-gradient(180deg,#0E1B33 0%,#0B1120 72%)}
+#login .cgrad{position:absolute;inset:0;z-index:1;background:
+linear-gradient(180deg,rgba(11,17,32,.30) 0%,rgba(11,17,32,.08) 26%,rgba(11,17,32,.80) 70%,#0B1120 100%)}
+.cwrap{position:relative;z-index:2;padding:34px 26px calc(34px + env(safe-area-inset-bottom));
+display:flex;flex-direction:column;gap:15px}
+.cwrap .lgo{text-align:left;margin:0 0 4px}
+.cwrap .lgo h1{font-size:42px;line-height:1.02;color:#fff}
+.cwrap .lgo .vs{margin-top:12px;color:#C6D0E4}
+.cwrap .lgo .vs span{color:var(--gold)}
+.cwrap input{background:rgba(17,26,46,.72);border-color:rgba(255,255,255,.14);color:#fff}
+.cwrap input::placeholder{color:#9fb0cf}
+.unlock{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;padding:15px}
+.lockwho{font-family:'Instrument Serif',serif;font-style:italic;font-size:19px;color:#E8EDF7;margin-bottom:2px}
+.bioerr{font-size:12px;color:#ff9b9b;text-align:center;min-height:15px;margin:2px 0}
+.cfoot{display:flex;gap:22px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.lnk{background:0;border:0;color:rgba(200,210,230,.82);font-family:inherit;
+font-size:12px;font-weight:600;cursor:pointer}
+.altlink{background:0;border:0;color:#9fb0cf;font-family:inherit;font-size:12.5px;cursor:pointer;
+text-decoration:underline;text-underline-offset:3px;align-self:center;margin-top:2px}
 .lgo{text-align:center;margin-bottom:34px}
 .lgo h1{font-family:'Instrument Serif',serif;font-size:34px;letter-spacing:-.4px;line-height:1.1}
 .lgo h1 em{font-style:italic;color:var(--gold)}
@@ -231,14 +255,41 @@ transform:translateY(140px);transition:.35s cubic-bezier(.2,.8,.2,1)}
 <body>
 
 <div id="login">
-  <div class="lgo">
-    <h1>Balizador <em>da Casa</em></h1>
-    <div class="vs">"Consagre ao Senhor tudo o que você faz,<br>e os seus planos serão bem-sucedidos."<br><br><span>PROVÉRBIOS 16:3</span></div>
+  <div class="cover default" id="cover"></div>
+  <div class="cgrad"></div>
+  <div class="cwrap">
+    <div class="lgo">
+      <h1>Balizador <em>da Casa</em></h1>
+      <div class="vs">"Consagre ao Senhor tudo o que você faz, e os seus planos serão bem-sucedidos."<br><br><span>PROVÉRBIOS 16:3</span></div>
+    </div>
+
+    <div id="lock" style="display:none">
+      <div class="lockwho" id="lock-who">Bem-vindos de volta</div>
+      <div class="bioerr" id="bio-err"></div>
+      <button class="btn unlock" id="b-bio">🔓&nbsp; Entrar com Face ID / PIN</button>
+      <button class="altlink" id="use-pass">Entrar com email e senha</button>
+    </div>
+
+    <div id="pwlogin" style="display:none">
+      <div class="err" id="lerr"></div>
+      <input type="email" id="em" placeholder="Email" autocomplete="email">
+      <input type="password" id="pw" placeholder="Senha" autocomplete="current-password">
+      <button class="btn" id="blogin">Entrar</button>
+    </div>
+
+    <div id="bioffer" style="display:none">
+      <div class="lockwho">Ativar entrada rápida?</div>
+      <div class="mics" style="text-align:left;color:#C6D0E4;margin-bottom:8px">Use o Face ID ou o PIN do celular para entrar nas próximas vezes, sem digitar senha.</div>
+      <button class="btn g unlock" id="b-enable">Ativar Face ID / PIN</button>
+      <button class="altlink" id="b-skip">Agora não</button>
+    </div>
+
+    <div class="cfoot">
+      <button class="lnk" id="edit-photo">＋ Foto da família</button>
+      <button class="lnk" id="edit-sec">🔒 Face ID / PIN</button>
+    </div>
+    <input type="file" id="photo-file" accept="image/*" style="display:none">
   </div>
-  <div class="err" id="lerr"></div>
-  <input type="email" id="em" placeholder="Email" autocomplete="email">
-  <input type="password" id="pw" placeholder="Senha" autocomplete="current-password">
-  <button class="btn" id="blogin">Entrar</button>
 </div>
 
 <div id="app">
@@ -498,16 +549,114 @@ document.getElementById('theme').onclick=()=>{THEME=THEME==='light'?'dark':'ligh
 
 let TX=[],CONTAS=[],CATS=[],EST=[],METAS=[],COMP=[],QUEM='',EMAIL='';
 
+/* ---------- Capa (foto da família) ---------- */
+const COVERKEY='balizador-cover';
+function applyCover(){
+  const img=localStorage.getItem(COVERKEY);
+  const el=document.getElementById('cover');
+  if(img){el.style.backgroundImage='url('+img+')';el.classList.remove('default');}
+  else{el.style.backgroundImage='';el.classList.add('default');}
+}
+applyCover();
+document.getElementById('edit-photo').onclick=()=>document.getElementById('photo-file').click();
+document.getElementById('photo-file').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{const im=new Image();im.onload=()=>{
+    const max=1200,sc=Math.min(1,max/Math.max(im.width,im.height));
+    const cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);
+    cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+    let data;try{data=cv.toDataURL('image/jpeg',0.82);}catch(_){data=rd.result;}
+    try{localStorage.setItem(COVERKEY,data);applyCover();toast('Foto da capa atualizada ✓');}
+    catch(_){toast('Imagem muito grande, tente outra',1);}
+  };im.src=rd.result;};
+  rd.readAsDataURL(f);
+};
+
+/* ---------- Biometria: Face ID / PIN via WebAuthn ---------- */
+const b64u={
+  enc:b=>btoa(String.fromCharCode.apply(null,new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),
+  dec:s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');const p='='.repeat((4-s.length%4)%4);const bin=atob(s+p);
+    const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer;}};
+function rnd(n){const u=new Uint8Array(n);crypto.getRandomValues(u);return u.buffer;}
+const CREDKEY='balizador-cred';
+async function bioSupported(){try{return !!window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();}catch(e){return false;}}
+async function bioRegister(email,nome){
+  const cred=await navigator.credentials.create({publicKey:{
+    challenge:rnd(32),rp:{name:'Balizador da Casa',id:location.hostname},
+    user:{id:rnd(16),name:email||'casa',displayName:nome||'Casa'},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+    timeout:60000,attestation:'none'}});
+  localStorage.setItem(CREDKEY,b64u.enc(cred.rawId));
+}
+async function bioVerify(){
+  const id=localStorage.getItem(CREDKEY);if(!id)throw new Error('sem credencial');
+  await navigator.credentials.get({publicKey:{
+    challenge:rnd(32),rpId:location.hostname,
+    allowCredentials:[{type:'public-key',id:b64u.dec(id)}],
+    userVerification:'required',timeout:60000}});
+}
+
+/* ---------- Fluxo de entrada ---------- */
+function show(el,on){document.getElementById(el).style.display=on?'block':'none';}
+function mostrarLoginSenha(){show('lock',0);show('bioffer',0);show('pwlogin',1);}
+async function mostrarBloqueio(){
+  show('pwlogin',0);show('bioffer',0);show('lock',1);
+  document.getElementById('bio-err').textContent='';
+  const hasCred=!!localStorage.getItem(CREDKEY),sup=await bioSupported();
+  const b=document.getElementById('b-bio');
+  if(hasCred&&sup){b.innerHTML='🔓&nbsp; Entrar com Face ID / PIN';tentarBio(true);}
+  else{b.innerHTML='Entrar';}
+}
+async function tentarBio(auto){
+  const hasCred=!!localStorage.getItem(CREDKEY),sup=await bioSupported();
+  if(!(hasCred&&sup)){boot();return;}
+  try{await bioVerify();boot();}
+  catch(e){if(!auto)document.getElementById('bio-err').textContent='Não reconhecido. Toque para tentar de novo.';}
+}
+document.getElementById('b-bio').onclick=()=>tentarBio(false);
+document.getElementById('use-pass').onclick=async()=>{await sb.auth.signOut();mostrarLoginSenha();};
+
 document.getElementById('blogin').onclick=async()=>{
   const em=document.getElementById('em').value.trim();
   const pw=document.getElementById('pw').value;
   const er=document.getElementById('lerr');
+  const btn=document.getElementById('blogin');btn.disabled=true;btn.textContent='Entrando…';
   const {error}=await sb.auth.signInWithPassword({email:em,password:pw});
+  btn.disabled=false;btn.textContent='Entrar';
   if(error){er.textContent='Email ou senha incorretos.';er.style.display='block';return;}
-  boot();
+  er.style.display='none';
+  const sup=await bioSupported();
+  if(sup&&!localStorage.getItem(CREDKEY))ofertarBio(em);
+  else boot();
 };
 document.getElementById('pw').onkeydown=e=>{if(e.key==='Enter')document.getElementById('blogin').click();};
-sb.auth.getSession().then(({data})=>{if(data.session)boot();});
+
+function ofertarBio(email){
+  show('pwlogin',0);show('lock',0);show('bioffer',1);
+  document.getElementById('b-enable').onclick=async()=>{
+    try{await bioRegister(email,'');toast('Face ID / PIN ativado ✓');}
+    catch(e){toast('Não foi possível ativar agora',1);}
+    boot();};
+  document.getElementById('b-skip').onclick=()=>boot();
+}
+
+document.getElementById('edit-sec').onclick=async()=>{
+  if(localStorage.getItem(CREDKEY)){localStorage.removeItem(CREDKEY);
+    toast('Face ID / PIN removido deste aparelho');return;}
+  if(!await bioSupported()){toast('Este aparelho não suporta Face ID/PIN no navegador',1);return;}
+  const {data}=await sb.auth.getSession();
+  if(!data.session){toast('Entre com email e senha primeiro',1);mostrarLoginSenha();return;}
+  try{await bioRegister('casa','');toast('Face ID / PIN ativado ✓');}
+  catch(e){toast('Não foi possível ativar',1);}
+};
+
+/* estado inicial */
+sb.auth.getSession().then(({data})=>{
+  if(data.session)mostrarBloqueio();
+  else mostrarLoginSenha();
+});
 
 function identidade(email){email=(email||'').toLowerCase();
   const ov=localStorage.getItem('balizador-quem:'+email);
