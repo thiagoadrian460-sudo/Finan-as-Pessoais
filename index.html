@@ -711,6 +711,10 @@ border:1.5px solid rgba(212,162,76,.6);display:flex;align-items:center;justify-c
     <div class="st" style="margin:16px 0 8px">Últimas atividades</div>
     <div id="pm-acts"></div>
     <button class="btn" id="pm-out-btn" style="background:var(--slate);color:var(--ink);box-shadow:none;margin-top:16px">Sair da conta</button>
+    <div class="st" style="margin:20px 0 8px;color:var(--red)">Zona de perigo</div>
+    <button class="btn" id="pm-backup" style="background:var(--slate);color:var(--ink);box-shadow:none;margin-top:0">⤓ Baixar backup dos lançamentos</button>
+    <button class="btn" id="pm-reset" style="background:rgba(224,82,82,.14);color:var(--red);border:1px solid rgba(224,82,82,.42);box-shadow:none">Apagar todos os lançamentos e recomeçar</button>
+    <div class="mics" style="text-align:left;margin-top:4px">Apaga só os lançamentos (mantém contas, categorias e metas). Baixe o backup antes.</div>
   </div>
 </div>
 
@@ -951,6 +955,33 @@ document.getElementById('pm-switch').onclick=()=>{QUEM=QUEM==='Larissa'?'Adrian'
   render();loadNota();openProfile();toast('Agora como '+QUEM);};
 document.getElementById('pm-photo').onclick=()=>{PROF_EDIT=QUEM;document.getElementById('prof-file').click();};
 document.getElementById('pm-out-btn').onclick=async()=>{await sb.auth.signOut();location.reload();};
+async function baixarBackup(){
+  const r=await sb.from('transacoes').select('*').limit(20000);
+  const rows=r.data||[];
+  const blob=new Blob([JSON.stringify(rows,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='balizador-backup-'+hoje()+'.json';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  toast('Backup baixado ('+rows.length+' lançamentos)');
+}
+document.getElementById('pm-backup').onclick=baixarBackup;
+(function(){
+  const rb=document.getElementById('pm-reset');let armed=false,tmr;
+  rb.onclick=async()=>{
+    if(!armed){armed=true;rb.textContent='Tem certeza? Toque de novo para APAGAR TUDO';
+      tmr=setTimeout(()=>{armed=false;rb.textContent='Apagar todos os lançamentos e recomeçar';},4000);return;}
+    clearTimeout(tmr);armed=false;rb.disabled=true;rb.textContent='Apagando…';
+    try{
+      const del=await sb.from('transacoes').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      if(del.error)throw del.error;
+      const {count}=await sb.from('transacoes').select('id',{count:'exact',head:true});
+      await carregar();
+      if(count&&count>0)toast('Só apaguei parte ('+count+' restaram) — permissão do banco. Use o SQL.',1);
+      else{toast('Tudo limpo — pode recomeçar ✓');closeProfile();}
+    }catch(e){toast('Sem permissão para apagar pelo app. Use o SQL do Supabase.',1);}
+    rb.disabled=false;rb.textContent='Apagar todos os lançamentos e recomeçar';
+  };
+})();
 
 /* estado inicial: sempre começa no seletor de perfil */
 pintarPerfis();
