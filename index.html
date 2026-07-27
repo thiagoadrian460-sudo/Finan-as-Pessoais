@@ -1472,8 +1472,8 @@ drop.onclick=()=>file.click();
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
 drop.ondragleave=()=>drop.classList.remove('over');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');
-  const f=e.dataTransfer.files[0];if(f)(/\.pdf$/i.test(f.name)?lerPDF(f):lerCSV(f));};
-file.onchange=e=>{const f=e.target.files[0];if(f)(/\.pdf$/i.test(f.name)?lerPDF(f):lerCSV(f));};
+  const f=e.dataTransfer.files[0];if(f)subirExtrato(f);};
+file.onchange=e=>{const f=e.target.files[0];if(f)subirExtrato(f);};
 
 async function inserirRows(rows){
   const ncId=CATS.find(c=>c.nome==='Não Classificado').id;
@@ -1579,6 +1579,47 @@ async function lerPDF(f){
   }
 }
 
+/* ---------- Leitura de extrato/relatório (IA lê qualquer formato) ---------- */
+async function extrairTextoArquivo(f){
+  if(/\.pdf$/i.test(f.name)){const l=await pdfToLines(f);return l.join('\n');}
+  return await f.text();
+}
+const IA_ROWS_SCHEMA={type:'object',additionalProperties:false,required:['lancamentos'],properties:{
+  lancamentos:{type:'array',items:{type:'object',additionalProperties:false,required:['data','valor','descricao'],properties:{
+    data:{type:'string'},valor:{type:'number'},descricao:{type:'string'}}}}}};
+async function rowsViaIA(texto){
+  const sys='Você extrai lançamentos financeiros de um extrato ou relatório (bancário, de cartão, de vendas, etc.). Devolva TODOS os lançamentos como lista. Campo data no formato YYYY-MM-DD (use o ano '+new Date().getFullYear()+' se o ano não aparecer). Campo valor numérico: use NEGATIVO para saídas/despesas/débitos/pagamentos/compras/saques e POSITIVO para entradas/receitas/créditos/vendas/depósitos. descricao curta (estabelecimento ou histórico). Ignore cabeçalhos, saldos e linhas de total. Se não houver lançamentos, devolva lista vazia.';
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+    headers:{'content-type':'application/json','x-api-key':alfKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-opus-4-8',max_tokens:8000,system:sys,
+      output_config:{format:{type:'json_schema',schema:IA_ROWS_SCHEMA}},
+      messages:[{role:'user',content:'Extraia os lançamentos deste conteúdo:\n\n'+texto.slice(0,60000)}]})});
+  if(!res.ok){if(res.status===401)localStorage.removeItem(AKEY);throw new Error('HTTP '+res.status);}
+  const data=await res.json();
+  const raw=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+  const out=JSON.parse(raw);
+  return (out.lancamentos||[]).filter(x=>x&&x.data&&typeof x.valor==='number'&&x.valor!==0)
+    .map(x=>({dt:x.data,vl:x.valor,ds:(x.descricao||'Importado').slice(0,60)}));
+}
+async function lerArquivoRows(f){
+  const texto=await extrairTextoArquivo(f);
+  if(!texto||!texto.replace(/\s/g,''))return {vazio:true,rows:[]};
+  let rows=[];
+  try{rows=alfKey()?await rowsViaIA(texto):(/\.pdf$/i.test(f.name)?parseExtratoLinhas(texto.split('\n')):parseCSVText(texto));}
+  catch(e){try{rows=/\.pdf$/i.test(f.name)?parseExtratoLinhas(texto.split('\n')):parseCSVText(texto);}catch(_){rows=[];}}
+  return {vazio:false,rows};
+}
+async function subirExtrato(f){
+  const o=document.getElementById('o-csv');
+  o.innerHTML='<div class="pr"><div class="prt">Lendo '+(/\.pdf$/i.test(f.name)?'PDF':'CSV')+'…</div><div class="acs">'+(alfKey()?'O Alfredo está interpretando o extrato.':'Extraindo lançamentos.')+'</div></div>';
+  let r;
+  try{r=await lerArquivoRows(f);}
+  catch(e){o.innerHTML='<div class="pr" style="background:rgba(224,82,82,.08);border-color:rgba(224,82,82,.3)"><div class="prt" style="color:var(--red)">Não consegui abrir o arquivo</div></div>';return;}
+  if(r.vazio){o.innerHTML='<div class="pr" style="background:rgba(224,82,82,.08);border-color:rgba(224,82,82,.3)"><div class="prt" style="color:var(--red)">PDF sem texto</div><div class="acs">Parece um PDF digitalizado (imagem). Exporte o extrato em CSV pelo banco.</div></div>';return;}
+  if(!r.rows.length){o.innerHTML='<div class="pr" style="background:rgba(224,82,82,.08);border-color:rgba(224,82,82,.3)"><div class="prt" style="color:var(--red)">Não achei lançamentos</div><div class="acs">'+(alfKey()?'Formato incomum — me chame no Alfredo pra ajustar.':'Configure a chave do Alfredo (🤵) para ler extratos de qualquer banco.')+'</div></div>';return;}
+  importar(r.rows);
+}
+
 /* ---------- Alfredo: assistente de IA (Claude API direto do navegador) ---------- */
 const AKEY='balizador-anthropic-key';
 function alfKey(){return localStorage.getItem(AKEY)||'';}
@@ -1630,12 +1671,15 @@ function renderChart(g){
   box.innerHTML=inner;log.appendChild(box);log.scrollTop=log.scrollHeight;
 }
 async function alfArquivo(f){
-  chatAdd('sys','📎 '+f.name+' — lendo…');
-  let rows;
-  try{rows=/\.pdf$/i.test(f.name)?parseExtratoLinhas(await pdfToLines(f)):parseCSVText(await f.text());}
-  catch(e){chatAdd('sys','⚠️ Não consegui ler o arquivo.');return;}
-  if(!rows||!rows.length){chatAdd('sys','Não encontrei lançamentos nesse arquivo.');return;}
-  chatAdd('a','Encontrei '+rows.length+' lançamentos no arquivo. Quer que eu cadastre todos no banco?');
+  chatAdd('sys','📎 '+f.name);
+  const pend=chatAdd('a','Analisando os lançamentos do arquivo…');
+  let r;
+  try{r=await lerArquivoRows(f);}
+  catch(e){pend.textContent='⚠️ Não consegui abrir o arquivo.';return;}
+  if(r.vazio){pend.textContent='Esse PDF parece ser só imagem (digitalizado, sem texto). Exporte o extrato em CSV pelo banco.';return;}
+  if(!r.rows.length){pend.textContent='Não encontrei lançamentos nesse arquivo. Se as colunas forem incomuns, me descreva como estão organizadas.';return;}
+  const rows=r.rows;
+  pend.textContent='Encontrei '+rows.length+' lançamentos. Quer que eu cadastre todos no banco?';
   const log=document.getElementById('chatlog');
   const wrap=document.createElement('div');wrap.className='chatin';wrap.style.cssText='padding:0 0 8px;border:0;gap:8px';
   wrap.innerHTML='<button class="btn g" id="alf-imp" style="margin:0">Importar '+rows.length+'</button>'+
