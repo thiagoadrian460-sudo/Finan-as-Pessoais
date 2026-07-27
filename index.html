@@ -673,21 +673,51 @@ document.getElementById('b-txt').onclick=()=>{
   mostrar(document.getElementById('o-txt'),v?parse(v):null);};
 
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const mic=document.getElementById('mic');
-if(SR){
-  const r=new SR();r.lang='pt-BR';r.interimResults=false;
-  let on=false;
-  mic.onclick=()=>{on?r.stop():r.start();};
-  r.onstart=()=>{on=true;mic.classList.add('rec');
-    document.getElementById('mt').textContent='Ouvindo…';
-    document.getElementById('ms').textContent='Toque para parar';};
-  r.onend=()=>{on=false;mic.classList.remove('rec');
-    document.getElementById('mt').textContent='Toque e fale';};
-  r.onresult=e=>{const t=e.results[0][0].transcript;
-    document.getElementById('ms').textContent='"'+t+'"';
-    mostrar(document.getElementById('o-voz'),parse(t));};
-  r.onerror=()=>toast('Microfone bloqueado',1);
-}else{mic.onclick=()=>toast('Voz só no Chrome/Safari',1);}
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+
+// iPhone/iPad: a API de voz do navegador é instável e costuma "gravar nada".
+// Usamos o ditado nativo do teclado (🎤 do iOS), bem mais confiável.
+// Também é o fallback para navegadores sem SpeechRecognition (degrada para digitar).
+function vozNativa(){
+  const box=document.getElementById('m-voz');
+  box.innerHTML=
+    '<textarea id="vta" placeholder="Toque aqui, depois no 🎤 do teclado e fale.&#10;Ex: gastei 40 na padaria"></textarea>'+
+    '<div class="mics" style="margin:2px 0 0">'+(isIOS?'No iPhone, use o microfone do teclado — é o mais confiável.':'Fale usando o ditado do teclado, ou digite.')+'</div>'+
+    '<button class="btn" id="v-ok">Classificar</button>'+
+    '<div id="o-voz"></div>';
+  const vta=document.getElementById('vta');
+  setTimeout(()=>{try{vta.focus();}catch(e){}},120);
+  document.getElementById('v-ok').onclick=()=>{
+    const v=vta.value.trim();
+    mostrar(document.getElementById('o-voz'),v?parse(v):null);};
+}
+
+// Android / desktop com suporte: reconhecimento automático, mais robusto.
+function vozSR(){
+  const mic=document.getElementById('mic');
+  const mt=document.getElementById('mt'),ms=document.getElementById('ms');
+  const ovoz=document.getElementById('o-voz');
+  const r=new SR();r.lang='pt-BR';r.interimResults=true;r.continuous=false;r.maxAlternatives=1;
+  let on=false,fin='';
+  mic.onclick=()=>{if(on){r.stop();return;}fin='';try{r.start();}catch(e){}};
+  r.onstart=()=>{on=true;mic.classList.add('rec');mt.textContent='Ouvindo…';
+    ms.textContent='Fale agora — toque para parar';ovoz.innerHTML='';};
+  r.onresult=e=>{let it='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const s=e.results[i][0].transcript;e.results[i].isFinal?fin+=s:it+=s;}
+    ms.textContent='"'+(fin+it).trim()+'"';};
+  r.onspeechend=()=>{try{r.stop();}catch(e){}};
+  r.onend=()=>{on=false;mic.classList.remove('rec');mt.textContent='Toque e fale';
+    const t=fin.trim();
+    if(t)mostrar(ovoz,parse(t));
+    else ms.textContent='Não captei o áudio. Toque e fale de novo, ou use a aba Texto.';};
+  r.onerror=ev=>{on=false;mic.classList.remove('rec');
+    if(ev.error==='not-allowed'||ev.error==='service-not-allowed')toast('Permita o microfone para o site',1);
+    else if(ev.error==='no-speech')ms.textContent='Não ouvi nada. Toque e fale de novo.';
+    else toast('Falha no microfone',1);};
+}
+
+if(SR&&!isIOS)vozSR();else vozNativa();
 
 const drop=document.getElementById('drop'),file=document.getElementById('file');
 drop.onclick=()=>file.click();
